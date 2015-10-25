@@ -1,0 +1,410 @@
+<!--
+The MIT License (MIT)
+Copyright (c) 2014 Leap Motion Inc
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+//-->
+<html>
+	<head>
+		<title>Math into Motion</title>
+		<link rel="stylesheet" type="text/css" href="styles.css" />
+	</head>
+	<body style="
+      background: -webkit-linear-gradient(left, green , white, green); /* For Safari 5.1 to 6.0 */
+      background: -o-linear-gradient(right, green , white, green); /* For Opera 11.1 to 12.0 */
+      background: -moz-linear-gradient(right, green , white, green); /* For Firefox 3.6 to 15 */
+      background: linear-gradient(to right, green , white, green); /* Standard syntax */
+      ">
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript" src="https://js.leapmotion.com/leap-0.6.2.min.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript">
+        var left = false;
+        var middle = false;
+        var right = false;
+        var selected = [];
+        const ANSWERING = 0;
+        const SUBMITTED = 1
+        var state = ANSWERING;
+    </script>
+    <script type="text/javascript">
+        const FORMULA = 0;
+        const IMG_SRC = 1;
+        const TYPE = 2;
+        const ANS = 3;
+        var probList = [
+            ["x", "", "Linear", [3,5,7]],
+            ["x^2", "", "Quadratic", [1,3,5]],
+            ["x^3", "", "Cubic", [3,5,7]],
+            ["e^x", "", "Exponential", [3,4,5]]
+        ]
+        var currentProb = 0;
+</script>
+   <script type="text/javascript">
+
+    (function(){
+		const MAX_HANDS = 1; //More than 1 hand drops DOM performance
+		const LEAP_MIN = { 'x': -9.0, 'y': 30.0, 'z': -15.0 };
+		const LEAP_MAX = { 'x': 8.0, 'y': 7.0, 'z': 15.0 };
+		const PALM_HTML	= "<div class='palm' style='z-index:10'><img style='height:40px;width:40px;' src='cursor.png'></div>";
+
+		/*
+		* Setup the page.
+		*/
+
+
+		function start() {
+			updateScreenSize(); //Set the inital screen size.
+			$(window).resize(updateScreenSize); //Update our screen size on resize.
+			createHands(); //Setup the DOM elements to draw our hands. Nothing Leap specific here.
+		}
+
+		/*
+		* This is the meat of our exmaple. Get the LeapMotion frame data and move the relevant DOM items.
+		*/
+		function updateLoop(frame) {
+			for(var h=0; h<MAX_HANDS; h++) {
+				if(h < frame.hands.length) {
+					var leap_hand = frame.hands[h];
+					if(leap_hand.valid) {
+						showHand(h);
+						updateHandPosition(h, leap_hand);
+					}
+					else
+					{
+						hideHand(h);
+					}
+				}
+				else {
+					hideHand(h);
+				}
+			}
+		}
+
+		/*
+		* Make all items on the hand visible.
+		*/
+		function showHand(h) {
+			$("#palm_"+h).show();
+			$('#label_'+h+'_palm').show();
+		}
+
+		function hideHand(h) {
+			$("#palm_"+h).hide();
+		}
+
+		function updateHandPosition(h, leap_hand) {
+			var palmPosition = normalizeVector(leap_hand.palmPosition).multiplyScalar(normalToScreen);
+
+			$("#palm_"+h).offset({'left': palmPosition.x , 'top': palmPosition.y });
+			$("#palm_"+h).css('position', 'absolute');
+            //alert( palmPosition.x + ", " + $("#point"+1).position().top );
+            for( num = 1; num <= document.getElementsByClassName("pointer").length; num = num + 1 ){
+              if (palmPosition.x > $("#point"+num).position().left + 430 - 40
+                    && palmPosition.x < $("#point"+num).position().left + 430 + 35
+                    && palmPosition.y > $("#point"+num).position().top + 60
+                    && palmPosition.y < $("#point"+num).position().top + 60 + 40){
+                more(num);
+              }
+            }
+		}
+
+		function createHands() {
+			//Create elements for two hands
+			for(var h=0;h<MAX_HANDS;h++){
+
+			  //Add the palm
+			  var palm = $(PALM_HTML);
+			  palm.attr('id',"palm_"+h);
+			  palm.hide();
+			  $('body').append(palm);
+			}
+		}
+
+      function updateScreenSize() {
+        screenWidth = $(window).width();
+        screenHeight = $(window).height();
+        normalToScreen = Math.min(screenWidth, screenHeight);
+      }
+
+      /*
+       * Put leap-scale Vectors into a unit space
+       */
+      function normalizeVector(position){
+        var pos = new Vector(position[0]/10.0, position[1]/10.0, position[2]/10.0);
+         pos.x = (pos.x - LEAP_MIN.x) / (LEAP_MAX.x - LEAP_MIN.x);
+         pos.y = (pos.y - LEAP_MIN.y) / (LEAP_MAX.y - LEAP_MIN.y);
+         pos.z = (pos.z - LEAP_MIN.z) / (LEAP_MAX.z - LEAP_MIN.z);
+         return pos;
+      }
+
+      start();
+      Leap.loop({enableGestures: true}, updateLoop);
+
+    })();
+
+    /*
+     * Vector Object - mostly for the sake of symantics.
+     */
+    function Vector(mX,mY,mZ){
+      this.x = typeof mX!=='undefined'?mX:0;
+      this.y = typeof mY!=='undefined'?mY:0;
+      this.z = typeof mZ!=='undefined'?mZ:0;
+    }
+
+    Vector.prototype.add = function(v2){
+      return new Vector(
+        this.x + v2.x,
+        this.y + v2.y,
+        this.z + v2.z);
+    }
+
+    Vector.prototype.subtract = function(v2){
+      return new Vector(
+        this.x - v2.x,
+        this.y - v2.y,
+        this.z - v2.z);
+    }
+
+    Vector.prototype.multiply = function(v2){
+      return new Vector(
+        this.x * v2.x,
+        this.y * v2.y,
+        this.z * v2.z);
+    }
+
+    Vector.prototype.multiplyScalar = function(scalar){
+      return new Vector(
+        this.x * scalar,
+        this.y * scalar,
+        this.z * scalar);
+    }
+
+    Vector.prototype.equals = function(v2){
+      return this.x == v2.x && this.y == v2.y && this.z == v2.z;
+    }
+
+    Vector.prototype.squaredDistanceTo = function(v2){
+      var diff = this.subtract(v2);
+      return (diff.x*diff.x)+(diff.y*diff.y)+(diff.z*diff.z);
+    }
+
+    Vector.prototype.normalized = function() {
+      var mag = this.magnitude();
+      return new Vector(
+        this.x / mag,
+        this.y / mag,
+        this.z / mag);
+    }
+
+    Vector.prototype.magnitude = function() {
+      return Math.sqrt((this.x*this.x)+(this.y*this.y)+(this.z*this.z));
+    }
+
+    Vector.prototype.distanceTo = function(v2){
+      return Math.sqrt(this.squaredDistance(v2));
+    }
+
+    Vector.prototype.dotProduct = function(v2) {
+      var v1 = this.normalized();
+      v2 = v2.normalized();
+      var n = 0;
+      n += v1.x * v2.x;
+      n += v1.y * v2.y;
+      n += v1.z * v2.z;
+      return n;
+     }
+
+     function leapToVector(leapPosition){
+      return new Vector(leapPosition[0], leapPosition[1], leapPosition[2]);
+     }
+    </script>
+    <script type="text/javascript">
+          function less(num) {
+              $( "#point"+num ).animate(
+                {
+                  height: "-=10",
+                  width: "-=10"
+                }, 300, function(){
+                  $( this ).css("background-color", "transparent")
+                  $( this ).css("border-color", "blue")
+                }
+              );
+          }
+          function more(num) {
+            switch(num){
+              case 1:
+              case 4:
+              case 7:
+                if(!left){
+                  left = true;
+                  break;
+                }
+                return;
+              case 2:
+              case 5:
+              case 8:
+                if(!middle){
+                  middle = true;
+                  break;
+                }
+                return;
+              case 3:
+              case 6:
+              case 9:
+                if(!right){
+                  right = true;
+                  break;
+                }
+                return;
+              default:
+                return;
+            }
+              $( "#point"+num ).animate(
+                {
+                  height: "+=10",
+                  width: "+=10"
+                }, 300, function(){
+                  $( this ).css("background-color", "blue")
+                }
+              );
+             selected.push(num);
+             selected = selected.sort();
+          }
+          function toAns(num, isCorrect){
+            if (isCorrect){
+              $( "#point"+num ).css("background-color", "green")
+              $( "#point"+num ).css("border-color", "green")
+            }
+            else {
+              $( "#point"+num ).css("background-color", "red")
+              $( "#point"+num ).css("border-color", "red")
+            }
+          }
+          function clearAll(){
+            for (x = 1; x <= 9; x++){
+              $( "#point"+x ).css("background-color", "transparent")
+              $( "#point"+x ).css("border-color", "blue")
+              if ($( "#point"+x ).height() == 40){
+                less(x);
+              }
+            }
+            selected = [];
+            left = false;
+            middle = false;
+            right = false;
+          }
+          function compare(array1, array2){
+            return (array1.length == array2.length) && array1.every(function(element, index) {
+                return element === array2[index];
+            });
+          }
+          function subNext(){
+            switch (state){
+              case ANSWERING:
+                var answer = probList[currentProb][ANS];
+                $( "#clear" ).hide();
+                $( "#submit" ).html("Next");
+                if (compare(answer,selected)){
+                  for(var point in answer){
+                    toAns(answer[point], true);
+                  }
+                }
+                else {
+                  for(var point in selected){
+                    toAns(selected[point], false);
+                  }
+                  for(var point in answer){
+                    toAns(answer[point], true);
+                  }
+                }
+                state = SUBMITTED;
+                break;
+              case SUBMITTED:
+                $( "#clear" ).show();
+                $( "#submit" ).html("Submit");
+                clearAll();
+                $( "#question"+(currentProb+1) ).hide();
+                currentProb++;
+                $( "#question"+(currentProb+1) ).show();
+                state = ANSWERING;
+            }
+          }
+    </script>
+        <span id="question1">
+            \begin{equation}{\Huge y=x}\end{equation}
+        </span>
+        <span style="display:none" id="question2">
+            \begin{equation}{\Huge y=x^2}\end{equation}
+        </span>
+        <span style="display:none" id="question3">
+            \begin{equation}{\Huge y=x^3}\end{equation}
+        </span>
+        <span style="display:none" id="question4">
+            \begin{equation}{\Huge y=e^x}\end{equation}
+        </span>
+        <center><table id="graph" style="padding:0;border-spacing:0;table-layout: fixed;position:relative;background-image: url('axes.png');background-repeat: no-repeat; height:480px; width:480px">
+            <tbody>
+                <tr valign="top" height="160">
+                    <td align="left">
+                      <div id="point1" class="pointer" style="margin-top:35px;"></div></body>
+                    </td>
+                    <td align="center" valign="bottom">
+                      <div id="point2" class="pointer"></div></body>
+                    </td>
+                    <td align="right">
+                      <div id="point3" class="pointer" style="margin-top:35px;"></div></body>
+                    </td>
+                </tr>
+                <tr valign="center" height="160">
+                    <td align="left">
+                      <div id="point4" class="pointer"></div></body>
+                    </td>
+                    <td align="center">
+                      <div id="point5" class="pointer"></div></body>
+                    </td>
+                    <td align="right">
+                      <div id="point6" class="pointer"></div></body>
+                    </td>
+                </tr>
+                <tr valign="bottom" height="160">
+                    <td align="left">
+                      <div id="point7" class="pointer" style="margin-bottom:35px;"></div></body>
+                    </td>
+                    <td align="center" valign="top">
+                      <div id="point8" class="pointer"></div></body>
+                    </td>
+                    <td align="right">
+                      <div id="point9" class="pointer" style="margin-bottom:35px;"></div></body>
+                    </td>
+                </tr>
+                <tr valign="top">
+                    <td align="left">
+                        <div id="clear" style="cursor:pointer;background-color:blue;color:white; width:50px;text-align:center;padding:10px;border-radius:5px" onclick="clearAll()">Clear</div>
+                    </td>
+                    <td align="center">
+                        <div id="help" style="cursor:pointer;background-color:cyan;color:white; width:50px;text-align:center;padding:10px;border-radius:5px" onclick="help()">Help</div>
+                    </td>
+                    <td align="right">
+                        <div id="submit" style="cursor:pointer;background-color:green;color:white; width:50px;text-align:center;padding:10px;border-radius:5px" onclick="subNext()">Submit</div>
+                    </td>
+                </tr>
+            </tbody>
+      </table></center>
+	</body>
+</html>
