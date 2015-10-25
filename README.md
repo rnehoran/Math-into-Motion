@@ -1,2 +1,4 @@
 # Math-into-Motion
 Making Abstract Mathematical Concepts a Reality
+
+According a study by the National Math and Science Initiative in 2013, 44% of U.S. high school graduates are not prepared for college level mathematics. Our hackathon project uses motion to educate students in math through a creative and hands-on approach. With the intention of targeting elementary and high school learners, we hope our idea will help enhance the math learning experience in and outside of the classroom. Using Leap Motion’s JavaScript API, we are presenting an enriched learning environment, allowing students to use hand gestures to comprehend challenging mathematical concepts. With Clusterpoint’s API, we are also able to track student progress and recommend relevant activities to improve students’ knowledge. We are promoting an exciting new way of learning through physical interactivity with the potential to revolutionize the traditional classroom.
